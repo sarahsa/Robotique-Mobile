@@ -1,168 +1,171 @@
 """
-
 Potential Field based path planner
-
 author: Atsushi Sakai (@Atsushi_twi)
-
 Ref:
 https://www.cs.cmu.edu/~motionplanning/lecture/Chap4-Potential-Field_howie.pdf
-
 """
 
 import numpy as np
 import matplotlib.pyplot as plt
+import math
 
 # Parameters
-n = 2
-F_ct = 5.0  # attractive potential gain
-F_cr = 100.0  # repulsive potential gain
-AREA_WIDTH = 30.0  # potential area width [m]
-
 show_animation = True
 
+# Potential field parameters
+f_ct = 1.0  # attractive potential gain
+f_cr = 5 # repulsive potential gain
+n = 2 # chosen dimension
+k = 0.3 # proportional constant for steering
+active_wdw_size = 4 # acitve window size [m] 
+AREA_WIDTH = 30.0  # area width [m]
 
-def calc_potential_field(gx, gy, ox, oy, reso, rr):
-    minx = min(ox) - AREA_WIDTH / 2.0
-    miny = min(oy) - AREA_WIDTH / 2.0
-    maxx = max(ox) + AREA_WIDTH / 2.0
-    maxy = max(oy) + AREA_WIDTH / 2.0
+# Grid parameters
+minx = - AREA_WIDTH / 2.0
+miny = - AREA_WIDTH / 2.0
+maxx = + AREA_WIDTH / 2.0
+maxy = + AREA_WIDTH / 2.0
+
+
+# Others parameters
+omega_max = 0.8 #[s**(-1)]
+v_max = 0.8 #[m.s^(-1)]
+
+
+# Compute the potential for the given robot position
+def calc_potential_field(x, y, theta, gx, gy, ox, oy, reso, rr):
     xw = int(round((maxx - minx) / reso))
     yw = int(round((maxy - miny) / reso))
 
     # calc each potential
     pmap = [[0.0 for i in range(yw)] for i in range(xw)]
+    
+    # sum of the two below defined potentials (attractive and repulsive)
+    pmap, ft = calc_attractive_potential(pmap, x, y, gx, gy)
+    pmap, fr, c1, c2, c3, c4 = calc_repulsive_potential(pmap, x, y,theta, ox, oy, rr)
+    return pmap, fr+ft, c1, c2, c3, c4
 
-    for ix in range(xw):
-        x = ix * reso + minx
-
-        for iy in range(yw):
-            y = iy * reso + miny
-            ug = calc_attractive_potential(x, y, gx, gy)
-            uo = calc_repulsive_potential(x, y, ox, oy, rr)
-            uf = ug + uo
-            pmap[ix][iy] = uf
-
-    return pmap, minx, miny
-
-
-def calc_attractive_potential(x, y, gx, gy):
-    d = np.hypot(x - gx, y - gy)
-    #print(d)
-    return F_ct * np.array([(gx-x)/d, (gy-y)/d])
-
-
-def calc_repulsive_potential(x, y, ox, oy, rr):
-    # search nearest obstacle
-    F_r = np.array([0,0])
+# Attractive potential
+def calc_attractive_potential(pmap, x, y, gx, gy):
+    d = np.sqrt((x-gx)**2 + (y-gy)**2)
+    fx = f_ct * (gx-x) / d
+    fy = f_ct * (gy-y) / d
+    pmap[int(gx)][int(gy)] = np.sqrt(fx**2+ fy**2)
+    return pmap, np.array([fx,fy])
+ 
+# Repulsive potential
+def calc_repulsive_potential(pmap, x, y,theta, ox, oy, rr):
+    fx = 0
+    fy = 0
+    # Calculate the coordinates of active window corners
+    c1 = np.array([x+rr*np.cos(theta) + active_wdw_size*np.sin(theta),
+                   y+rr*np.sin(theta) - active_wdw_size*np.cos(theta)])
+    c2 = np.array([x+rr*np.cos(theta) - active_wdw_size*np.sin(theta),
+                   y+rr*np.sin(theta) + active_wdw_size*np.cos(theta)])
+    c3 = np.array([x+rr*np.cos(theta) + active_wdw_size*(-np.sin(theta)+np.cos(theta)),   y+rr*np.sin(theta) + active_wdw_size*(np.cos(theta)+np.sin(theta))])
+    c4 = np.array([x+rr*np.cos(theta) + active_wdw_size*(np.sin(theta)+np.cos(theta)),   y+rr*np.sin(theta) + active_wdw_size*(-np.cos(theta)+np.sin(theta))])
+    
+    # For each obstacle...
     for i in range(len(ox)):
-        d = np.hypot(x - ox[i], y - oy[i])
-        f_x = F_cr * rr **n / d ** (n+1) * (ox[i] - x)
-        f_y = F_cr * rr **n / d ** (n+1) * (oy[i] - y)
-        F_r +=  np.array([f_x, f_y])
+        obx = ox[i]
+        oby = oy[i]
+        # ... check if the point is located inside the rectangle defined by c1, c2, c3, c4. Test: M is inside the rectangle ABCD iff 0 < AM.AB < AB.AB and 0 < AM.AD < AD.AD 
+        v_ref_hor = np.array([c1[0]-c2[0], c1[1]-c2[1]])
+        v_ref_vert = np.array([c3[0]-c2[0], c3[1]-c2[1]])
+        vtest = np.array([obx-c2[0], oby-c2[1]])
+        if 0<np.dot(vtest, v_ref_hor) and np.dot(vtest, v_ref_hor)<np.dot(v_ref_hor, v_ref_hor) and 0<np.dot(vtest, v_ref_vert) and np.dot(vtest, v_ref_vert)<np.dot(v_ref_vert, v_ref_vert):
+            # if the obstacle is visible
+            d = np.sqrt((x-obx)**2 + (y-oby)**2)
+            fix = f_cr * rr**n * (x-obx) / d**(n+1)
+            fiy = f_cr * rr**n * (y-oby) / d**(n+1)
+            fx += fix
+            fy += fiy
+            pmap[int(obx)][int(oby)] = np.sqrt(fix**2 + fiy**2)
 
-    return F_r
+    #return the resulting force
+    return pmap, np.array([fx,fy]), c1, c2, c3, c4
 
+# Computes the angular command passed to the robot
+def command_angular(theta,f):
+    # Potential force direction
+    delta = math.atan2(f[1], f[0])
+    cmd = k*(delta-theta)
+    if np.abs(cmd)>omega_max:
+        return omega_max * np.sign(cmd)
+    return cmd
 
-def get_motion_model():
-    # dx, dy
-    motion = [[1, 0],
-              [0, 1],
-              [-1, 0],
-              [0, -1],
-              [-1, -1],
-              [-1, 1],
-              [1, -1],
-              [1, 1]]
+# Defines the next motion direction
+def get_motion_model(theta, f):
+    omega = command_angular(theta,f)
+    motion = np.array([np.cos(theta + omega), np.sin(theta + omega)])
+    return omega, motion
 
-    return motion
+# The actual simulation function
+def potential_field_planning(sx, sy, stheta, gx, gy, ox, oy, reso, rr):
+    # Initialization
+    d = np.sqrt((sx - gx)**2+ (sy - gy)**2)
+    rx, ry, rtheta = [sx], [sy], [stheta]
+    romega = []
 
+    # While we are too far away from the target...
+    while d >= reso:
+        # Find the current configuration
+        x = rx[-1]
+        y = ry[-1]
+        theta = rtheta[-1]
 
-def potential_field_planning(sx, sy, gx, gy, ox, oy, reso, rr):
+        # Compute the potential and the command
+        pmap, f, c1, c2, c3, c4 = calc_potential_field(x, y, theta, gx, gy, ox, oy, reso, rr)
+        omega, motion = get_motion_model(theta, f)
+        romega.append(omega)
 
-    # calc potential field
-    pmap, minx, miny = calc_potential_field(sx, sy, ox, oy, reso, rr)
+        # Update the robot's pose
+        v = min(v_max, max(v_max/2,d-v_max))
+        xp = x + motion[0]*v
+        yp = y + motion[1]*v
+        theta = theta + omega
+        rx.append(xp)
+        ry.append(yp)
+        rtheta.append(theta)
+        d = np.sqrt((gx - xp)**2+ (gy - yp)**2)
 
-    # search path
-    d = np.hypot(sx - gx, sy - gy)
-    ix = round((sx - minx) / reso)
-    iy = round((sy - miny) / reso)
-    gix = round((gx - minx) / reso)
-    giy = round((gy - miny) / reso)
-
-    #if show_animation:
-    if True:
-        draw_heatmap(pmap)
-        plt.plot(ix, iy, "*k")
-        plt.plot(gix, giy, "*m")
-
-    rx, ry = [sx], [sy]
-    motion = get_motion_model()
-    #while d >= reso:
-     #   minp = float("inf")
-      #  minix, miniy = -1, -1
-       # for i in range(len(motion)):
-        #    inx = int(ix + motion[i][0])
-         #   iny = int(iy + motion[i][1])
-          #  if inx >= len(pmap) or iny >= len(pmap[0]):
-           #     p = float("inf")  # outside area
-            #else:
-             #   p = pmap[inx][iny]
-            #if minp > p:
-             #   minp = p
-              #  minix = inx
-               # miniy = iny
-       # ix = minix
-        #iy = miniy
-        #xp = ix * reso + minx
-        #yp = iy * reso + miny
-        #d = np.hypot(gx - xp, gy - yp)
-        #rx.append(xp)
-        #ry.append(yp)
-
-        #if show_animation:
-         #   plt.plot(ix, iy, ".r")
-    plt.pause(2)
+        # Plot part
+        if show_animation:
+            #plt.plot([c1[0], c2[0], c3[0], c4[0], c1[0]],[c1[1], c2[1], c3[1], c4[1], c1[1]])
+            plt.plot(gx, gy, "*m")
+            for i in range(len(ox)):
+                plt.plot(ox[i], oy[i], "*k")
+            plt.plot(xp, yp, ".r")
+            plt.pause(0.01)
 
     print("Goal!!")
 
-    return rx, ry
+    return rx, ry, romega
 
-
-def draw_heatmap(data):
-    tab = []
-    for i in range(len(data)):
-        tabi = []
-        for j in range(len(data[i])):
-            tabi.append(np.hypot(data[i][j][0], data[i][j][1]))
-        tab.append(tabi)
-    data = np.array(tab).T
-    plt.pcolor(data, vmax=100.0, cmap=plt.cm.Blues)
-
-
+# Launch function
 def main():
+    # Initialization
     print("potential_field_planning start")
 
     sx = 0.0  # start x position [m]
-    sy = 10.0  # start y positon [m]
-
+    sy = 15.0  # start y positon [m]
+    theta = 0.0
     gx = 30.0  # goal x position [m]
     gy = 30.0  # goal y position [m]
     grid_size = 0.5  # potential grid size [m]
-    robot_radius = 5.0  # robot radius [m]
-
-    ox = [15.0, 5.0, 20.0, 25.0, 17.5, 22.5]  # obstacle x position list [m]
-    oy = [25.0, 15.0, 26.0, 25.0, 25.5, 25.5]  # obstacle y position list [m]
+    robot_radius = 0.8 # robot radius [m]
+    
+    # Obstacle positions
+    ox = [15.0, 22.0, 20.0, 25.0, 20.0,15.0, 7.0, 7.0, 25.0]  
+    oy = [22.0, 22.0, 26.0, 25.0, 23.0, 23.0, 21.0, 17.0, 27.0] 
 
     if show_animation:
         plt.grid(True)
         plt.axis("equal")
 
     # path generation
-    rx, ry = potential_field_planning(
-        sx, sy, gx, gy, ox, oy, grid_size, robot_radius)
-
-    print(rx)
-    print(ry)
+    rx, ry, romega = potential_field_planning(
+        sx, sy, theta, gx, gy, ox, oy, grid_size, robot_radius)
 
     if show_animation:
         plt.show()

@@ -173,18 +173,14 @@ def potential_field_planning(sx, sy, stheta, gx, gy, reso, rr, ox=[], oy=[], wx=
         yp = y + motion[1]*v
         ox_round = np.round(ox,1)
         oy_round = np.round(oy, 1)
-        """
-        print("Rounded ox", ox_round)
-        print("Rounded oy",oy_round)
-        print("rounded xp: ", round(xp,1))
-        print("rounded yp: ", round(yp,1))
-        """
+
+        # Prevent the robot moving "through" the wall/obstacle
         for i in range(len(ox)):
             dist = np.sqrt((xp-ox[i])**2 + (yp-oy[i])**2)
-            if dist < 1.5:
-                xp = x
-                yp = y
-                theta = theta - (math.pi/2)
+            if dist < 1:
+                xp = x -motion[0]*v
+                yp = y - motion[1]*v
+                theta = theta + omega
                 rx.append(xp)
                 ry.append(yp)
                 rtheta.append(theta)
@@ -197,7 +193,7 @@ def potential_field_planning(sx, sy, stheta, gx, gy, reso, rr, ox=[], oy=[], wx=
 
         # Plot part
         if show_animation:
-            plt.plot(gx, gy, "*m")
+            plt.plot(gx, gy, "*c")
             #plt.plot([xp, xp+f[0]],[yp, yp+f[1]])
             for i in range(len(ox)):
                 plt.plot(ox[i], oy[i], "*k")
@@ -225,12 +221,13 @@ def main():
     sx = 3.0  # start x position [m]
     sy = 20.0  # start y positon [m]
     theta = np.pi
-    gx = 30.0  # goal x position [m]
-    gy = 30.0  # goal y position [m]
+    gx = 29.0  # goal x position [m]
+    gy = 29.0  # goal y position [m]
 
     # Discrete bstacles positions
     #ox = [15.0, 22.0, 20.0, 25.0,15.0, 7.0, 7.0, 25.0]
     #oy = [22.0, 22.0, 26.0, 25.0, 23.0, 21.0, 17.0, 27.0]
+
     ox1 =[15]*70
     ox2 = np.linspace(5, 15, 70)
     ox = np.concatenate((ox1, ox2, ox2))
@@ -241,11 +238,11 @@ def main():
     oy = np.concatenate((oy1, oy2, oy3))
 
     # Walls positions and lengths
-    wx = [5, 5] #wx: x-coordinate of the bottom-left corner of the wall
-    wy = [17.0, 23.0] #wx: y-coordinate of the bottom-left corner of the wall
-    wlx = [15, 15]  #wlx: wall length
-    wly = [2, 2]   #wly: wall height
-    wlrotate = [0, 0]
+    wx = [5, 5, 15] #wx: x-coordinate of the bottom-left corner of the wall
+    wy = [17.0, 23.0, 17] #wx: y-coordinate of the bottom-left corner of the wall
+    wlx = [10, 10, 2]  #wlx: wall length
+    wly = [2, 2, 8]   #wly: wall height
+    wlrotate = [0, 0, 0]
 
     if show_animation:
         plt.grid(True)

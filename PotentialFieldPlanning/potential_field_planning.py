@@ -171,6 +171,24 @@ def potential_field_planning(sx, sy, stheta, gx, gy, reso, rr, ox=[], oy=[], wx=
         v = command_velocity(theta,f)
         xp = x + motion[0]*v
         yp = y + motion[1]*v
+        ox_round = np.round(ox,1)
+        oy_round = np.round(oy, 1)
+        """
+        print("Rounded ox", ox_round)
+        print("Rounded oy",oy_round)
+        print("rounded xp: ", round(xp,1))
+        print("rounded yp: ", round(yp,1))
+        """
+        for i in range(len(ox)):
+            dist = np.sqrt((xp-ox[i])**2 + (yp-oy[i])**2)
+            if dist < 1.5:
+                xp = x
+                yp = y
+                theta = theta - (math.pi/2)
+                rx.append(xp)
+                ry.append(yp)
+                rtheta.append(theta)
+
         theta = theta + omega
         rx.append(xp)
         ry.append(yp)
@@ -204,7 +222,7 @@ def main():
     # Initialization
     print("potential_field_planning start")
 
-    sx = 5.0  # start x position [m]
+    sx = 3.0  # start x position [m]
     sy = 20.0  # start y positon [m]
     theta = np.pi
     gx = 30.0  # goal x position [m]
@@ -221,7 +239,6 @@ def main():
     oy2 = [23]*70
     oy3 = [19]*70
     oy = np.concatenate((oy1, oy2, oy3))
-    print("oy=" , oy)
 
     # Walls positions and lengths
     wx = [5, 5] #wx: x-coordinate of the bottom-left corner of the wall

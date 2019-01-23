@@ -173,18 +173,14 @@ def potential_field_planning(sx, sy, stheta, gx, gy, reso, rr, ox=[], oy=[], wx=
         yp = y + motion[1]*v
         ox_round = np.round(ox,1)
         oy_round = np.round(oy, 1)
-        """
-        print("Rounded ox", ox_round)
-        print("Rounded oy",oy_round)
-        print("rounded xp: ", round(xp,1))
-        print("rounded yp: ", round(yp,1))
-        """
+
+
         for i in range(len(ox)):
             dist = np.sqrt((xp-ox[i])**2 + (yp-oy[i])**2)
-            if dist < 1.5:
-                xp = x
-                yp = y
-                theta = theta - (math.pi/2)
+            if dist < 1:
+                xp = x -motion[0]*v
+                yp = y - motion[1]*v
+                theta = theta + omega
                 rx.append(xp)
                 ry.append(yp)
                 rtheta.append(theta)

@@ -174,7 +174,11 @@ def potential_field_planning(sx, sy, stheta, gx, gy, reso, rr, ox=[], oy=[], wx=
         ox_round = np.round(ox,1)
         oy_round = np.round(oy, 1)
 
+<<<<<<< HEAD
         # Prevent the robot moving "through" the wall/obstacle
+=======
+
+>>>>>>> 85f897557afa5f335058d9f3dbb80763580e4e27
         for i in range(len(ox)):
             dist = np.sqrt((xp-ox[i])**2 + (yp-oy[i])**2)
             if dist < 1:

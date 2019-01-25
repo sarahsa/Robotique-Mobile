@@ -174,11 +174,6 @@ def potential_field_planning(sx, sy, stheta, gx, gy, reso, rr, ox=[], oy=[], wx=
         ox_round = np.round(ox,1)
         oy_round = np.round(oy, 1)
 
-<<<<<<< HEAD
-        # Prevent the robot moving "through" the wall/obstacle
-=======
-
->>>>>>> 85f897557afa5f335058d9f3dbb80763580e4e27
         for i in range(len(ox)):
             dist = np.sqrt((xp-ox[i])**2 + (yp-oy[i])**2)
             if dist < 1:
@@ -222,16 +217,18 @@ def main():
     # Initialization
     print("potential_field_planning start")
 
-    sx = 3.0  # start x position [m]
-    sy = 20.0  # start y positon [m]
+    sx = 0.0  # start x position [m]
+    sy = 17.0  # start y positon [m]
     theta = np.pi
-    gx = 29.0  # goal x position [m]
-    gy = 29.0  # goal y position [m]
+    gx = 15.0  # goal x position [m]
+    gy = 30.0  # goal y position [m]
 
     # Discrete bstacles positions
     #ox = [15.0, 22.0, 20.0, 25.0,15.0, 7.0, 7.0, 25.0]
     #oy = [22.0, 22.0, 26.0, 25.0, 23.0, 21.0, 17.0, 27.0]
 
+#################5,1: Trap due to local minimum#################
+    """
     ox1 =[15]*70
     ox2 = np.linspace(5, 15, 70)
     ox = np.concatenate((ox1, ox2, ox2))
@@ -247,6 +244,71 @@ def main():
     wlx = [10, 10, 2]  #wlx: wall length
     wly = [2, 2, 8]   #wly: wall height
     wlrotate = [0, 0, 0]
+    """
+#################5,2: No passage between closely spaced obstacles#################
+    """
+    ox2 = np.linspace(4, 6, 20)
+    oy = []
+    ox=[]
+    lower_obs = np.linspace(18, 20, 20)
+    upper_obs = np.linspace(22, 24, 20)
+    for i in range(len(lower_obs)):
+        ox = np.concatenate((ox, ox2))
+        oy1 = [lower_obs[i]]*20
+        oy = np.concatenate((oy, oy1))
+
+        ox = np.concatenate((ox, ox2))
+        oy1 = [upper_obs[i]]*20
+        oy = np.concatenate((oy, oy1))
+
+
+    # Walls positions and lengths
+    wx = [4, 4] #wx: x-coordinate of the bottom-left corner of the wall
+    wy = [18.0, 22.0] #wx: y-coordinate of the bottom-left corner of the wall
+    wlx = [2, 2]  #wlx: wall length
+    wly = [2, 2]   #wly: wall height
+    wlrotate = [0, 0]
+    """
+
+#################5,3: Oscillations due to narrow passage#################
+
+    ox1 = np.linspace(5, 10, 50)
+    ox2 = np.linspace(10, 15, 50)
+    #ox3 = [10]*40
+    ox4 = np.linspace(5, 15, 100)
+    ox = np.concatenate((ox1, ox2, ox4))
+
+    oy1 = [26]*50
+    oy2 = [24]*50
+    #oy3 = np.linspace(24, 26, 40)
+    oy4 = [14]*100
+
+    oy = np.concatenate((oy1, oy2, oy4))
+
+    # Walls positions and lengths
+    wx = [5, 10, 5] #wx: x-coordinate of the bottom-left corner of the wall
+    wy = [26.0, 24.0, 12.0] #wx: y-coordinate of the bottom-left corner of the wall
+    wlx = [5, 5, 10]  #wlx: wall length
+    wly = [2, 2, 2]   #wly: wall height
+    wlrotate = [0, 0, 0]
+
+
+#################5,4: Oscillations due to narrow passage#################
+    """
+    ox2 = np.linspace(5, 15, 70)
+    ox = np.concatenate((ox2, ox2))
+
+    oy2 = [22]*70
+    oy3 = [19]*70
+    oy = np.concatenate((oy2, oy3))
+
+    # Walls positions and lengths
+    wx = [5, 5] #wx: x-coordinate of the bottom-left corner of the wall
+    wy = [17.0, 22.0] #wx: y-coordinate of the bottom-left corner of the wall
+    wlx = [10, 10]  #wlx: wall length
+    wly = [2, 2]   #wly: wall height
+    wlrotate = [0, 0]
+    """
 
     if show_animation:
         plt.grid(True)
